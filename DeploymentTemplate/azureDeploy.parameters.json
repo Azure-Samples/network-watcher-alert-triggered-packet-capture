@@ -1,0 +1,35 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "appName": {
+            "value": "YourAppName"
+        },
+        "repoURL": {
+            "value": "https://github.com/YourName/yourRepo.git"
+        },
+        "branch": {
+            "value": "yourBranch"
+        },
+        "PacketCaptureStorageAccount": {
+            "metadata": {
+                "description": "storage account into which incoming json and outgoing cef are logged"
+            }
+        },
+        "clientId" :{
+            "metadata": {
+                "description" : "ClientId of Service Principle"
+            }
+        },
+        "ClientKey" : {
+            "metadata": {
+                "description": "Client key of Service Principle"
+            }
+        },
+        "TenantId" : {
+            "metadata": {
+                "description" : "AAD TenantId of Service Principle"
+            }
+        }
+    }
+}
