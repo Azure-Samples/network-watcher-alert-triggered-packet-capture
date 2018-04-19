@@ -3,6 +3,7 @@ services: network-watcher
 platforms: dotnet
 author: mareat
 ---
+
 # Use Network Watcher and Azure Functions to process VM alerts and intiate a packet capture
 
 In this sample we show how you can programmatically initiate a packet capture using Network Watcher and Azure Functions. This sample utilizes the Azure Management Libraries for .NET
