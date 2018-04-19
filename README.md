@@ -1,7 +1,13 @@
-# AlertTriggeredPacketCapture
+---
+services: network-watcher
+platforms: dotnet
+author: mareat
+---
+# Use Network Watcher and Azure Functions to process VM alerts and intiate a packet capture
 
-# Deploy an Azure Function using an ARM template
+In this sample we show how you can programmatically initiate a packet capture using Network Watcher and Azure Functions. This sample utilizes the Azure Management Libraries for .NET
 
+## Deploy the Azure Function using an ARM template
 The AlertPacketCapture branch contains a working version of the deployment template, tailored for a real version of a function that processes Azure Monitor Alerts and triggers a subsequent packet capture on the resource that fired the alert.
 
 [![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure-Samples%2Fnetwork-watcher-alert-triggered-packet-capture%2Fmaster%2FDeploymentTemplate%2FazureDeploy.json
@@ -10,7 +16,7 @@ The AlertPacketCapture branch contains a working version of the deployment templ
 ## Overview
 
 The steps to fully implement the Azure Network Watcher Alert Packet Capture Connector are:  
-* Gather the settings below - the function requires a service principle to authenticate to Azure Resource Manager.
+* Gather the settings below - the function requires a service principle in order to authenticate to Azure Resource Manager(ARM).
 * Click the "Deploy to Azure" button below.
 * Authenticate to the Azure Portal (if necessary)
 * Fill in the form with the setting values
@@ -29,7 +35,7 @@ The steps to fully implement the Azure Network Watcher Alert Packet Capture Conn
 * appServicePlanCapacity      - how many instances do you want to set for the upper limit?  
    Example: For standard tier, S2, set a value from 1 to 10
 * githubRepoURL                     - this is the URL of the repo that contains the function app source. You would put your fork's address here.  
-   Example: ```https://github.com/microsoft/AzureNetworkWatcherNSGFlowLogsConnector```
+   Example: ```https://github.com/Azure-Samples/network-watcher-alert-triggered-packet-capture```
 * githubRepoBranch                  - this is the name of the branch containing the code you want to deploy.  
    Example: ```master```
 * PacketCaptureStorageAccount    - this is the name of the storage account where packet captures will be saved
