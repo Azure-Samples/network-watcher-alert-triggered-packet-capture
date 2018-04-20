@@ -1,7 +1,7 @@
 ---
 services: network-watcher
 platforms: dotnet
-author: mareat
+author: mattreatMSFT
 ---
 
 # Use Network Watcher and Azure Functions to process VM alerts and intiate a packet capture
