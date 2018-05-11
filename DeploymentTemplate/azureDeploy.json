@@ -22,7 +22,7 @@
         },
         "githubRepoURL": {
             "type": "string",
-            "defaultValue": "https://github.com/mattreatMSFT/AlertTriggeredPacketCapture.git"
+            "defaultValue": "https://github.com/Azure-Samples/network-watcher-alert-triggered-packet-capture.git"
         },
         "githubRepoBranch": {
             "type": "string",
