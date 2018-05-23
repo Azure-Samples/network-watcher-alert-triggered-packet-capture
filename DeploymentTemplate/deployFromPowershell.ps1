@@ -30,8 +30,8 @@ $PlainPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR
 
 $newApp = New-AzureRmADApplication -DisplayName $appDisplayName -IdentifierUris @($fakeURI)
 $newSP = New-AzureRMADServicePrincipal -ApplicationId $newApp.ApplicationId -Password $SecurePassword
-Write-Host "Wait 30 seconds for Service Principal population..."
-Start-Sleep 30
+Write-Host "Wait 60 seconds for Service Principal population..."
+Start-Sleep 60
 $newRoleAssignment = New-AzureRmRoleAssignment -ObjectId $newSP.Id -RoleDefinitionName "Owner" -Scope ("/subscriptions/{0}" -f $subscriptionID)
 
 Write-Host ("TenantID: {0}" -f $curLogin.Context.Tenant.Id)
