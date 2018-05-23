@@ -1,8 +1,14 @@
 #TODO: Convert to params, and extract all likely params
-
-
-$targetRGName = "PCAPSample"
-$targetRegion = "northcentralus"
+Param(
+    [string] $ResourceGroupLocation = 'southcentralus',
+    [string] $targetRGName = "PCAPSample",
+    [string] $targetRegion = "northcentralus",
+    [string] $appName = "PCAPSampleApp",
+    [string] $githubrepo = "https://github.com/Azure-Samples/network-watcher-alert-triggered-packet-capture",
+    [string] $githubRepoBranch = "master",
+    [string] $armTemplateURI = "https://raw.githubusercontent.com/Azure-Samples/network-watcher-alert-triggered-packet-capture/master/DeploymentTemplate/azureDeploy.json",
+    [string] $VMSize = "Standard_A1_v2"
+)
 Write-Host "Please authenticate using credentials that are capable of creating a Service Principal with 'Owner' permissions in its subscription"
 $curLogin = Login-AzureRmAccount
 
@@ -51,5 +57,5 @@ $parameterHash
 Write-Host "Ensuring Resource Group...."
 $targetRG = New-AzureRmResourceGroup -Name $targetRGName -Location $targetRegion -Force
 Write-Host "Deploying ARM Template...."
-New-AzureRmResourceGroupDeployment -Name "PCAPSampleDeployment" -ResourceGroupName $targetRGName  -TemplateParameterObject $parameterHash -TemplateFile ".\azureDeploy.json"
+New-AzureRmResourceGroupDeployment -Name "PCAPSampleDeployment" -ResourceGroupName $targetRGName  -TemplateParameterObject $parameterHash -TemplateUri $githubrepo
 Write-Host "Deployed ARM Template."
