@@ -28,39 +28,56 @@
             "type": "string",
             "defaultValue": "master"
         },
-        "PacketCaptureStorageAccount": {
-            "type": "string",
-            "metadata": {
-                "description": "Resource Id of the storage account where packet captures will be sent"
-            }
-        },
         "TenantId" : {
             "type": "string",
             "metadata": {
-                "description" : "AAD TenantId of Service Principle"
+                "description" : "AAD TenantId of Service Principal"
             }
         },
-        "clientId" : {
+        "ClientId" : {
             "type" : "string",
             "metadata": {
-                "description" : "ClientId of Service Principle"
+                "description" : "ClientId of Service Principal"
             }
         },
         "ClientKey" : {
             "type": "string",
             "metadata": {
-                "description": "Client key of Service Principle"
+                "description": "Client key of Service Principal"
+            }
+        },
+        "AlertEmail" : {
+            "type" : "string",
+            "metadata": {
+                "description" : "Email address to be notified when the sample alert is triggered against the sample VM"
+            }
+        },
+        "VMSize":
+        {
+            "type" : "string",
+            "metadata": {
+                "description":"Size of the sample VM (such as Standard_A1_v2, Standard_A2_v2, Standard_B2S)  . Enter 'None' to skip the sample VM" 
+            },
+            "defaultValue": "Standard_A1v2"
+        },
+        "VMPassword":
+        {
+            "type": "string",
+            "metadata": {
+                "description":"Password for the default administrator account 'PCAPAdmin' to be created on the VM"
+    
             }
         }
     },
     "variables": {
         "functionAppName": "[parameters('appName')]",
-        "hostingPlanName": "[variables('functionAppName')]",
-        "storageAccountName": "[concat('func', uniquestring(resourceGroup().id))]",
-        "storageAccountid": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]"
+        "hostingPlanName": "[variables('functionAppName')]",  
+        "storageAccountName": "[take(concat('pcapfunc', uniquestring(resourceGroup().id)),22)]",
+        "storageAccountID": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+        "sampleVMName" : "[concat('pcapsample',take(uniquestring(resourceGroup().id),4))]"
     },
     "resources": [
-        {
+        {            
             "type": "Microsoft.Storage/storageAccounts",
             "name": "[variables('storageAccountName')]",
             "apiVersion": "2015-06-15",
@@ -88,7 +105,7 @@
             "kind": "functionapp",
             "dependsOn": [
                 "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
-                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+                "[variables('storageAccountID')]"
             ],
             "properties": {
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
@@ -112,7 +129,7 @@
                         },
                         {
                             "name": "FUNCTIONS_EXTENSION_VERSION",
-                            "value": "beta"
+                            "value": "~1"
                         },
                         {
                             "name": "WEBSITE_NODE_DEFAULT_VERSION",
@@ -124,7 +141,7 @@
                         },
                         {
                             "name": "PacketCaptureStorageAccount",
-                            "value": "[parameters('PacketCaptureStorageAccount')]"
+                            "value": "[variables('storageAccountID')]"
                         }
                     ],
                     "connectionStrings" :[
@@ -140,7 +157,7 @@
                         },
                         {
                             "name": "clientId",
-                            "connectionString": "[parameters('clientId')]",
+                            "connectionString": "[parameters('ClientId')]",
                             "type": 3
                         }
                     ]
@@ -161,6 +178,172 @@
                     }
                 }
             ]
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[concat(variables('sampleVMName'),'-PublicIP')]",
+            "location": "[resourceGroup().location]",
+            "condition" : "[not(equals(toLower(parameters('VMSize')),'none'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks',concat(variables('sampleVMName'),'-VirtualNetwork'))]"
+            ],
+            "tags": {
+                "displayName": "PublicIPAddress"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[toLower(variables('sampleVMName'))]"
+                }
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Network/virtualNetworks",
+            "name": "[concat(variables('sampleVMName'),'-VirtualNetwork')]",
+            "location": "[resourceGroup().location]",
+            "condition" : "[not(equals(toLower(parameters('VMSize')),'none'))]",
+            "tags": {
+                "displayName": "VirtualNetwork"
+            },
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.0.0.0/16"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "[concat(variables('sampleVMName'),'-VirtualNetwork-Subnet')]",
+                        "properties": {
+                            "addressPrefix": "10.0.0.0/24"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[concat(variables('sampleVMName'),'-NetworkInterface')]",
+            "condition" : "[not(equals(toLower(parameters('VMSize')),'none'))]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIPAddresses/',variables('sampleVMName'),'-PublicIP')]"
+            ],
+            "tags": {
+                "displayName": "PCAPSampleVM Network Interface"
+            },
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('sampleVMName'),'-PublicIP'))]"
+                            },
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', concat(variables('sampleVMName'),'-VirtualNetwork')), '/subnets/',variables('sampleVMName'),'-VirtualNetwork-Subnet')]"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2017-03-30",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[variables('sampleVMName')]",
+            "location": "[resourceGroup().location]",
+            "condition" : "[not(equals(toLower(parameters('VMSize')),'none'))]",
+            "dependsOn": [
+                "[variables('storageAccountId')]",
+                "[concat('Microsoft.Network/networkInterfaces/',variables('sampleVMName'),'-NetworkInterface')]"
+            ],
+            "tags": {
+                "displayName": "PCAPSampleVM"
+            },
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('VMSize')]"
+                },
+                "osProfile": {
+                    "computerName": "[variables('sampleVMName')]",
+                    "adminUsername": "PCAPAdmin",
+                    "adminPassword": "[parameters('VMPassword')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer",
+                        "sku": "2016-Datacenter",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "name": "PCAPSampleVMOSDisk",
+                        "caching": "ReadWrite",
+                        "createOption": "FromImage"
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('sampleVMName'),'-NetworkInterface'))]"
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true,
+                        "storageUri": "[reference(variables('storageAccountName'), '2017-10-01').primaryEndpoints['blob']]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "microsoft.insights/alertrules",
+            "name": "SampleAlertPCAP",
+            "location": "[resourceGroup().location]",
+            "condition" : "[not(equals(toLower(parameters('VMSize')),'none'))]",
+            "apiVersion": "2016-03-01",
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines',variables('sampleVMName'))]"            ],
+            "properties": {
+                "name": "SampleAlertPCAP",
+                "description": "This is a sample alert configured by the Network Watcher Packet Capture Sample",
+                "isEnabled": true,
+                "condition": {
+                    "odata.type": "Microsoft.Azure.Management.Insights.Models.ThresholdRuleCondition",
+                    "dataSource": {
+                        "odata.type": "Microsoft.Azure.Management.Insights.Models.RuleMetricDataSource",
+                        "resourceUri": "[resourceId('Microsoft.Compute/virtualMachines',variables('sampleVMName'))]",
+                        "metricNamespace" : null,
+                        "metricName": "Percentage CPU"
+                    },
+                    "operator": "GreaterThan",
+                    "threshold": 10,
+                    "windowSize": "PT5M"
+                },
+                "actions": [
+                    {
+                        "odata.type": "Microsoft.Azure.Management.Insights.Models.RuleEmailAction",
+                        "sendToServiceOwners": true,
+                        "customEmails": ["[parameters('AlertEmail')]"]
+                    }
+                    ,
+                    {
+                        "odata.type": "Microsoft.Azure.Management.Insights.Models.RuleWebhookAction",
+                        "serviceUri": "[concat('https://',first(reference(resourceId('Microsoft.Web/sites',variables('functionAppName'))).hostNames),'/api/AlertPacketCapture')]",
+                        "properties": {}
+                    }
+                ]
+            }
         }
-    ]
+    
+    ],
+    "outputs": {
+      
+    }
 }

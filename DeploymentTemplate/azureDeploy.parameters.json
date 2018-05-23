@@ -1,35 +1,52 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
         "appName": {
-            "value": "YourAppName"
+            "value": "PCAPSampleApp"
         },
-        "repoURL": {
-            "value": "https://github.com/YourName/yourRepo.git"
+        "githubRepoURL": {
+            "value": "https://github.com/daweins/network-watcher-alert-triggered-packet-capture"
         },
-        "branch": {
-            "value": "yourBranch"
+        "githubRepoBranch": {
+            "value": "master"
         },
-        "PacketCaptureStorageAccount": {
+        "ClientId" :{
             "metadata": {
-                "description": "storage account into which incoming json and outgoing cef are logged"
-            }
-        },
-        "clientId" :{
-            "metadata": {
-                "description" : "ClientId of Service Principle"
+                "description" : "ClientId of Service Principal"
             }
         },
         "ClientKey" : {
             "metadata": {
-                "description": "Client key of Service Principle"
+                "description": "Client key of Service Principal"
             }
         },
         "TenantId" : {
             "metadata": {
-                "description" : "AAD TenantId of Service Principle"
+                "description" : "AAD TenantId of Service Principal"
             }
+        },
+         "VMSize":
+        {
+            "metadata":{
+                "description":"Size of the sample VM (such as Standard_A1v2, Standard_A2v2, Standard_B2S)  . Enter 'None' to skip the sample VM" 
+            },
+            "Value": "Standard_A1_v2"
+
+        },
+        "VMPassword":
+        {
+            "metadata":{
+                "description":"Password for the default administrator account 'PCAPAdmin' to be created on the Sample VM"
+            }
+
+        },
+        "AlertEmail":
+        {
+            "metadata": {
+                "description" : "Email address to be notified when the sample alert is triggered against the sample VM"
+            }
+
         }
     }
 }
