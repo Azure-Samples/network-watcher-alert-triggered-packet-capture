@@ -1,8 +1,18 @@
 #TODO: Convert to params, and extract all likely params
-
-
-$targetRGName = "PCAPSample"
-$targetRegion = "northcentralus"
+Param(
+    [string] $githubrepo = "https://github.com/Azure-Samples/network-watcher-alert-triggered-packet-capture",
+    [string] $githubRepoBranch = "master",
+    [string] $armTemplateURI = "https://raw.githubusercontent.com/Azure-Samples/network-watcher-alert-triggered-packet-capture/master/DeploymentTemplate/azureDeploy.json",
+    [string] $VMSize = "Standard_A1_v2",
+    [Parameter(Mandatory=$true)]
+    [string] $AlertEmailParam,
+    [Parameter(Mandatory=$true)]
+    [string] $appName,
+    [Parameter(Mandatory=$true)]
+    [string] $targetRGName,
+    [Parameter(Mandatory=$true)]
+    [string] $ResourceGroupLocation 
+)
 Write-Host "Please authenticate using credentials that are capable of creating a Service Principal with 'Owner' permissions in its subscription"
 $curLogin = Login-AzureRmAccount
 
@@ -24,8 +34,8 @@ $PlainPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR
 
 $newApp = New-AzureRmADApplication -DisplayName $appDisplayName -IdentifierUris @($fakeURI)
 $newSP = New-AzureRMADServicePrincipal -ApplicationId $newApp.ApplicationId -Password $SecurePassword
-Write-Host "Wait 30 seconds for Service Principal population..."
-Start-Sleep 30
+Write-Host "Wait 60 seconds for Service Principal population..."
+Start-Sleep 60
 $newRoleAssignment = New-AzureRmRoleAssignment -ObjectId $newSP.Id -RoleDefinitionName "Owner" -Scope ("/subscriptions/{0}" -f $subscriptionID)
 
 Write-Host ("TenantID: {0}" -f $curLogin.Context.Tenant.Id)
@@ -35,7 +45,6 @@ Write-Host ("Client Secret: The password you entered.")
 # Now, deploy
 
 
-$AlertEmailParam = Read-Host -Prompt "Please enter an email address to receive the Sample VM's alert"
 # File based parameters don't always play nicely with object params, so use object params only
 $JSONFile = Get-Content   ".\azureDeploy.parameters.json" | ConvertFrom-Json
 $parameterHash = @{}
@@ -49,7 +58,7 @@ $parameterHash["AlertEmail"] = $AlertEmailParam.ToString()
 $parameterHash
 
 Write-Host "Ensuring Resource Group...."
-$targetRG = New-AzureRmResourceGroup -Name $targetRGName -Location $targetRegion -Force
+$targetRG = New-AzureRmResourceGroup -Name $targetRGName -Location $ResourceGroupLocation -Force
 Write-Host "Deploying ARM Template...."
-New-AzureRmResourceGroupDeployment -Name "PCAPSampleDeployment" -ResourceGroupName $targetRGName  -TemplateParameterObject $parameterHash -TemplateFile ".\azureDeploy.json"
+New-AzureRmResourceGroupDeployment -Name "PCAPSampleDeployment" -ResourceGroupName $targetRGName  -TemplateParameterObject $parameterHash -TemplateUri $armTemplateURI
 Write-Host "Deployed ARM Template."

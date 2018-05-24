@@ -58,7 +58,7 @@
             "metadata": {
                 "description":"Size of the sample VM (such as Standard_A1_v2, Standard_A2_v2, Standard_B2S)  . Enter 'None' to skip the sample VM" 
             },
-            "defaultValue": "Standard_A1v2"
+            "defaultValue": "Standard_A1_v2"
         },
         "VMPassword":
         {
