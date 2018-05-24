@@ -1,7 +1,6 @@
-using System.IO;
+﻿using System.IO;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.WebJobs.Host;
 using Newtonsoft.Json.Linq;
 using System.Threading.Tasks;
@@ -10,26 +9,27 @@ using Microsoft.Azure.Management.ResourceManager.Fluent.Authentication;
 using Microsoft.Azure.Management.Fluent;
 using Microsoft.Azure.Management.ResourceManager.Fluent;
 using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Azure.Management.Network.Fluent;
 using System.Collections.Generic;
 using System.Linq;
 using System;
+using System.Net;
+using System.Net.Http;
 
 namespace AlertPacketCapture
 {
     public static class AlertPacketCapture
     {
         [FunctionName("AlertPacketCapture")]
-        public static async Task Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)]HttpRequest req, TraceWriter log)
+        public static async Task<HttpResponseMessage> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)]HttpRequestMessage req, TraceWriter log)
         {
             try
             {
                 log.Info("C# HTTP trigger function processed a request.");
 
                 //Parse alert request
-                log.Verbose($"Parsing Alert Request with content of length: {req.ContentLength}");
-                string requestBody = new StreamReader(req.Body).ReadToEnd();
+                log.Verbose($"Parsing Alert Request...");
+                string requestBody = req.Content.ReadAsStringAsync().Result;
 
                 dynamic contextData = JObject.Parse(requestBody).SelectToken("$..context");
 
@@ -46,25 +46,23 @@ namespace AlertPacketCapture
                     (curResourceName == null) ||
                     (curResourceId == null))
                 {
-                    log.Error($"Insufficient context sent by webhook: \n{displayContext}");
-                    throw new Exception("Insufficient context sent by webhook");
-
+                    string errorString = $"Insufficient context sent by webhook: \n{displayContext}";
+                    log.Error(errorString);
+                    return(req.CreateResponse(HttpStatusCode.BadRequest, errorString));
                 }
                 log.Verbose($"Context from webhook parsed: \n{displayContext}");
 
 
-                IConfigurationRoot config = new ConfigurationBuilder()
-                    .AddJsonFile("local.settings.json", optional: true, reloadOnChange: true)
-                    .AddEnvironmentVariables()
-                    .Build();
                 log.Verbose($"Getting Configuration");
-                string tenantId = config.GetConnectionString("TenantId");
-                string clientId = config.GetConnectionString("clientId");
-                string clientKey = config.GetConnectionString("ClientKey");
+               
+                string tenantId = System.Configuration.ConfigurationManager.ConnectionStrings["TenantId"].ConnectionString;
+                string clientId = System.Configuration.ConfigurationManager.ConnectionStrings["clientId"].ConnectionString;
+                string clientKey = System.Configuration.ConfigurationManager.ConnectionStrings["ClientKey"].ConnectionString;
                 if (string.IsNullOrEmpty(tenantId) || string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientKey))
                 {
-                    log.Error("Service credentials are null. Check connection string settings");
-                    throw new Exception("Service credentials are null");
+                    string errorString = "Service credentials are null. Check connection string settings";
+                    log.Error(errorString);
+                    return(req.CreateResponse(HttpStatusCode.InternalServerError, errorString));
                 }
 
                 log.Verbose($"Getting Credentials");
@@ -72,8 +70,9 @@ namespace AlertPacketCapture
                 IAzure azure = Azure.Configure().Authenticate(credentials).WithSubscription(curSubscriptionId);
                 if (azure == null)
                 {
-                    log.Error("Error: Issues logging into Azure subscription: " + curSubscriptionId + ". Exiting.");
-                    throw new Exception("Unable to log into Azure");
+                    string errorString = $"Error: Issues logging into Azure subscription: {curSubscriptionId}. Exiting.";
+                    log.Error(errorString);
+                    return(req.CreateResponse(HttpStatusCode.InternalServerError, errorString));
                 }
                 log.Verbose("Azure Credentials successfully created");
 
@@ -82,14 +81,24 @@ namespace AlertPacketCapture
                 IVirtualMachine VM = await azure.VirtualMachines.GetByIdAsync(curResourceId);
                 if (VM == null)
                 {
-                    log.Error($"Error: VM: {curResourceId} was not found. Exiting.");
-                    throw new Exception("VM not found");
+                    string errorString = $"Error: VM: {curResourceId} was not found. Exiting.";
+                    log.Error(errorString);
+                    return(req.CreateResponse(HttpStatusCode.BadRequest, errorString));
                 }
                 log.Verbose($"VM found: {curResourceName}; {curResourceId}");
 
                 log.Verbose($"Checking for Network Watcher in region: {VM.Region}");
-                INetworkWatcher networkWatcher = await EnsureNetworkWatcherExists(azure, VM.Region, log);
-
+                INetworkWatcher networkWatcher;
+                try
+                {
+                    networkWatcher = await EnsureNetworkWatcherExists(azure, VM.Region, log);
+                }
+                catch(Exception err)
+                {
+                    string errorString = $"Error confirming network watcher. {err.ToString()}.";
+                    log.Error(errorString);
+                    return (req.CreateResponse(HttpStatusCode.InternalServerError, errorString));
+                }
                 log.Verbose($"Checking for Network Watcher Extension on VM: {VM.Name}");
                 InstallNetworkWatcherExtension(VM, log);
 
@@ -98,35 +107,42 @@ namespace AlertPacketCapture
                 var storageAccount = await azure.StorageAccounts.GetByIdAsync(storageAccountId);
                 if (storageAccount == null)
                 {
-                    log.Error("Storage Account: " + storageAccountId + " not found. Exiting.");
-                    throw new Exception("Storage Account not found");
+                    string errorString = $"PCAP Storage Account: {storageAccountId} not found. Exiting.";
+                    log.Error(errorString);
+                    return(req.CreateResponse(HttpStatusCode.InternalServerError, errorString));
                 }
                 log.Verbose("Storage Account found");
 
                 string packetCaptureName = VM.Name.Substring(0, System.Math.Min(50, VM.Name.Length)) + System.DateTime.Now.ToString("yyyyMMddhhmmss").Replace(":", "");
                 log.Verbose($"Packet Capture Name: {packetCaptureName}");
 
-                IPacketCaptures packetCapturesObj = networkWatcher.PacketCaptures;
-                var packetCaptures = packetCapturesObj.List().ToList();
-                if (packetCaptures.Count >= 10)
+                try
                 {
-                    log.Info("More than 10 Captures, finding oldest.");
-                    var packetCaptureTasks = new List<Task<IPacketCaptureStatus>>();
-                    foreach (IPacketCapture pcap in packetCaptures)
-                        packetCaptureTasks.Add(pcap.GetStatusAsync());
-
-                    var packetCaptureStatuses = new List<Tuple<IPacketCapture, IPacketCaptureStatus>>();
-                    for (int i = 0; i < packetCaptureTasks.Count; ++i)
-                        packetCaptureStatuses.Add(new Tuple<IPacketCapture, IPacketCaptureStatus>(packetCaptures[i], await packetCaptureTasks[i]));
-
-                    packetCaptureStatuses.Sort((Tuple<IPacketCapture, IPacketCaptureStatus> first, Tuple<IPacketCapture, IPacketCaptureStatus> second) =>
+                    IPacketCaptures packetCapturesObj = networkWatcher.PacketCaptures;
+                    var packetCaptures = packetCapturesObj.List().ToList();
+                    if (packetCaptures.Count >= 5)
                     {
-                        return first.Item2.CaptureStartTime.CompareTo(second.Item2.CaptureStartTime);
-                    });
-                    log.Info("Removing: " + packetCaptureStatuses.First().Item1.Name);
-                    await networkWatcher.PacketCaptures.DeleteByNameAsync(packetCaptureStatuses.First().Item1.Name);
-                }
+                        log.Info("More than 10 Captures, finding oldest.");
+                        var packetCaptureTasks = new List<Task<IPacketCaptureStatus>>();
+                        foreach (IPacketCapture pcap in packetCaptures)
+                            packetCaptureTasks.Add(pcap.GetStatusAsync());
 
+                        var packetCaptureStatuses = new List<Tuple<IPacketCapture, IPacketCaptureStatus>>();
+                        for (int i = 0; i < packetCaptureTasks.Count; ++i)
+                            packetCaptureStatuses.Add(new Tuple<IPacketCapture, IPacketCaptureStatus>(packetCaptures[i], await packetCaptureTasks[i]));
+
+                        packetCaptureStatuses.Sort((Tuple<IPacketCapture, IPacketCaptureStatus> first, Tuple<IPacketCapture, IPacketCaptureStatus> second) =>
+                        {
+                            return first.Item2.CaptureStartTime.CompareTo(second.Item2.CaptureStartTime);
+                        });
+                        log.Info("Removing: " + packetCaptureStatuses.First().Item1.Name);
+                        networkWatcher.PacketCaptures.DeleteByNameAsync(packetCaptureStatuses.First().Item1.Name);
+                    }
+                }
+                catch(Exception delErr)
+                {
+                    log.Error($"Error when deleting existing packet capture. Attempting to continue.... {delErr.ToString()}");
+                }
                 log.Info("Creating Packet Capture");
                 await networkWatcher.PacketCaptures
                     .Define(packetCaptureName)
@@ -140,8 +156,9 @@ namespace AlertPacketCapture
             {
                 string unhandledErrString = $"Function Ending: error in AlertPacketCapture: {err.ToString()}";
                 log.Error(unhandledErrString);
-                throw new Exception(unhandledErrString);
+                return(req.CreateResponse(HttpStatusCode.InternalServerError, unhandledErrString));
             }
+            return req.CreateResponse(HttpStatusCode.OK, "PCAP Created");
         }
 
         private static async Task<INetworkWatcher> EnsureNetworkWatcherExists(IAzure azure, Region region, TraceWriter log = null)
@@ -201,9 +218,15 @@ namespace AlertPacketCapture
 
         private static void InstallNetworkWatcherExtension(IVirtualMachine vm, TraceWriter log = null)
         {
-            IVirtualMachineExtension extension = vm.ListExtensions().First(x => x.Value.PublisherName == "Microsoft.Azure.NetworkWatcher").Value;
+            IVirtualMachineExtension extension = null;
+            IReadOnlyDictionary<string,IVirtualMachineExtension> extensionList = vm.ListExtensions();
+            if (extensionList.Count > 0)
+            {
+                extension = extensionList.First(x => x.Value.PublisherName == "Microsoft.Azure.NetworkWatcher").Value;
+            }
             if (extension == null)
             {
+                log.Info($"VM doesn't have Network Watcher Extension... Installing");
                 vm.Update()
                     .DefineNewExtension("packetcapture")
                     .WithPublisher("Microsoft.Azure.NetworkWatcher")
@@ -212,6 +235,10 @@ namespace AlertPacketCapture
                     .Attach();
 
                 log?.Info("Installed Extension on " + vm.Name);
+            }
+            else
+            {
+                log.Info($"VM already has Network Watcher Extension: proceeding...");
             }
         }
     }
