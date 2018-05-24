@@ -6,7 +6,7 @@
             "value": "PCAPSampleApp"
         },
         "githubRepoURL": {
-            "value": "https://github.com/daweins/network-watcher-alert-triggered-packet-capture"
+            "value": "https://github.com/network-watcher-alert-triggered-packet-capture"
         },
         "githubRepoBranch": {
             "value": "master"
