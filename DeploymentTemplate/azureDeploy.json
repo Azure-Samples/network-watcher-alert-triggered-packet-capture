@@ -309,7 +309,9 @@
             "condition" : "[not(equals(toLower(parameters('VMSize')),'none'))]",
             "apiVersion": "2016-03-01",
             "dependsOn": [
-                "[resourceId('Microsoft.Compute/virtualMachines',variables('sampleVMName'))]"            ],
+                "[resourceId('Microsoft.Compute/virtualMachines',variables('sampleVMName'))]"  ,
+                "[resourceId('Microsoft.Compute/virtualMachines/extensions',variables('sampleVMName'),'NetworkWatcherExtension')]"
+                      ],
             "properties": {
                 "name": "SampleAlertPCAP",
                 "description": "This is a sample alert configured by the Network Watcher Packet Capture Sample",
@@ -340,8 +342,22 @@
                     }
                 ]
             }
+        },
+        {
+            "name": "[concat(variables('sampleVMName'), '/NetworkWatcherExtension')]",
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "apiVersion": "2017-12-01",
+            "location": "northcentralus",
+            "properties": {
+                "publisher": "Microsoft.Azure.NetworkWatcher",
+                "type": "NetworkWatcherAgentWindows",
+                "typeHandlerVersion": "1.4",
+                "autoUpgradeMinorVersion": true
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', variables('sampleVMName'))]"
+            ]
         }
-    
     ],
     "outputs": {
       

@@ -116,27 +116,33 @@ namespace AlertPacketCapture
                 string packetCaptureName = VM.Name.Substring(0, System.Math.Min(50, VM.Name.Length)) + System.DateTime.Now.ToString("yyyyMMddhhmmss").Replace(":", "");
                 log.Verbose($"Packet Capture Name: {packetCaptureName}");
 
-                IPacketCaptures packetCapturesObj = networkWatcher.PacketCaptures;
-                var packetCaptures = packetCapturesObj.List().ToList();
-                if (packetCaptures.Count >= 10)
+                try
                 {
-                    log.Info("More than 10 Captures, finding oldest.");
-                    var packetCaptureTasks = new List<Task<IPacketCaptureStatus>>();
-                    foreach (IPacketCapture pcap in packetCaptures)
-                        packetCaptureTasks.Add(pcap.GetStatusAsync());
-
-                    var packetCaptureStatuses = new List<Tuple<IPacketCapture, IPacketCaptureStatus>>();
-                    for (int i = 0; i < packetCaptureTasks.Count; ++i)
-                        packetCaptureStatuses.Add(new Tuple<IPacketCapture, IPacketCaptureStatus>(packetCaptures[i], await packetCaptureTasks[i]));
-
-                    packetCaptureStatuses.Sort((Tuple<IPacketCapture, IPacketCaptureStatus> first, Tuple<IPacketCapture, IPacketCaptureStatus> second) =>
+                    IPacketCaptures packetCapturesObj = networkWatcher.PacketCaptures;
+                    var packetCaptures = packetCapturesObj.List().ToList();
+                    if (packetCaptures.Count >= 5)
                     {
-                        return first.Item2.CaptureStartTime.CompareTo(second.Item2.CaptureStartTime);
-                    });
-                    log.Info("Removing: " + packetCaptureStatuses.First().Item1.Name);
-                    await networkWatcher.PacketCaptures.DeleteByNameAsync(packetCaptureStatuses.First().Item1.Name);
-                }
+                        log.Info("More than 10 Captures, finding oldest.");
+                        var packetCaptureTasks = new List<Task<IPacketCaptureStatus>>();
+                        foreach (IPacketCapture pcap in packetCaptures)
+                            packetCaptureTasks.Add(pcap.GetStatusAsync());
 
+                        var packetCaptureStatuses = new List<Tuple<IPacketCapture, IPacketCaptureStatus>>();
+                        for (int i = 0; i < packetCaptureTasks.Count; ++i)
+                            packetCaptureStatuses.Add(new Tuple<IPacketCapture, IPacketCaptureStatus>(packetCaptures[i], await packetCaptureTasks[i]));
+
+                        packetCaptureStatuses.Sort((Tuple<IPacketCapture, IPacketCaptureStatus> first, Tuple<IPacketCapture, IPacketCaptureStatus> second) =>
+                        {
+                            return first.Item2.CaptureStartTime.CompareTo(second.Item2.CaptureStartTime);
+                        });
+                        log.Info("Removing: " + packetCaptureStatuses.First().Item1.Name);
+                        networkWatcher.PacketCaptures.DeleteByNameAsync(packetCaptureStatuses.First().Item1.Name);
+                    }
+                }
+                catch(Exception delErr)
+                {
+                    log.Error($"Error when deleting existing packet capture. Attempting to continue.... {delErr.ToString()}");
+                }
                 log.Info("Creating Packet Capture");
                 await networkWatcher.PacketCaptures
                     .Define(packetCaptureName)
