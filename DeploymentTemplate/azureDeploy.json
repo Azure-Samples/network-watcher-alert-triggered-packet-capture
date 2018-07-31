@@ -310,7 +310,7 @@
             "apiVersion": "2016-03-01",
             "dependsOn": [
                 "[resourceId('Microsoft.Compute/virtualMachines',variables('sampleVMName'))]"  ,
-                "[resourceId('Microsoft.Compute/virtualMachines/extensions',variables('sampleVMName'),'NetworkWatcherExtension')]"
+                "[resourceId('Microsoft.Compute/virtualMachines/extensions',variables('sampleVMName'),'AzureNetworkWatcherExtension')]"
                       ],
             "properties": {
                 "name": "SampleAlertPCAP",
@@ -344,10 +344,10 @@
             }
         },
         {
-            "name": "[concat(variables('sampleVMName'), '/NetworkWatcherExtension')]",
+            "name": "[concat(variables('sampleVMName'), '/AzureNetworkWatcherExtension')]",
             "type": "Microsoft.Compute/virtualMachines/extensions",
             "apiVersion": "2017-12-01",
-            "location": "northcentralus",
+            "location": "[resourceGroup().location]",
             "properties": {
                 "publisher": "Microsoft.Azure.NetworkWatcher",
                 "type": "NetworkWatcherAgentWindows",
