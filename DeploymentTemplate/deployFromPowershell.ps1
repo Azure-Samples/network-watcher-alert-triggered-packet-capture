@@ -1,9 +1,8 @@
-#TODO: Convert to params, and extract all likely params
 Param(
     [string] $githubrepo = "https://github.com/Azure-Samples/network-watcher-alert-triggered-packet-capture",
     [string] $githubRepoBranch = "master",
     [string] $armTemplateURI = "https://raw.githubusercontent.com/Azure-Samples/network-watcher-alert-triggered-packet-capture/master/DeploymentTemplate/azureDeploy.json",
-    [string] $VMSize = "Standard_A1_v2",
+    [string] $VMSize = "Standard_D2_v2",
     [Parameter(Mandatory=$true)]
     [string] $AlertEmailParam,
     [Parameter(Mandatory=$true)]
@@ -43,8 +42,6 @@ Write-Host ("Client Id: {0}" -f $newSP.ApplicationId)
 Write-Host ("Client Secret: The password you entered.")
 
 # Now, deploy
-
-
 # File based parameters don't always play nicely with object params, so use object params only
 $JSONFile = Get-Content   ".\azureDeploy.parameters.json" | ConvertFrom-Json
 $parameterHash = @{}
@@ -55,6 +52,8 @@ $parameterHash["ClientKey"] =  $PlainPassword.ToString()
 $parameterHash["TenantId"] =  $curLogin.Context.Tenant.Id
 $parameterHash["VMPassword"] = $PlainPassword.ToString()
 $parameterHash["AlertEmail"] = $AlertEmailParam.ToString()
+$parameterHash["appName"] = $appName
+$parameterHash["VMSize"] = $VMSize
 $parameterHash
 
 Write-Host "Ensuring Resource Group...."
