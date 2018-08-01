@@ -3,6 +3,7 @@ Param(
     [string] $githubRepoBranch = "master",
     [string] $armTemplateURI = "https://raw.githubusercontent.com/Azure-Samples/network-watcher-alert-triggered-packet-capture/master/DeploymentTemplate/azureDeploy.json",
     [string] $VMSize = "Standard_D2_v2",
+    [string] $networkWatcherRGName = "NetworkWatcher",
     [Parameter(Mandatory=$true)]
     [string] $AlertEmailParam,
     [Parameter(Mandatory=$true)]
@@ -40,6 +41,18 @@ $newRoleAssignment = New-AzureRmRoleAssignment -ObjectId $newSP.Id -RoleDefiniti
 Write-Host ("TenantID: {0}" -f $curLogin.Context.Tenant.Id)
 Write-Host ("Client Id: {0}" -f $newSP.ApplicationId)
 Write-Host ("Client Secret: The password you entered.")
+
+# Configure Network Watcher if it's not already in the region desired
+$networkWatcher = Get-AzureRmNetworkWatcher -Location $ResourceGroupLocation
+if($networkWatcher -eq $null)
+{
+    Write-Output ("Provisioning new Network Watcher in region: {0}" -f $ResourceGroupLocation)
+    # Ensure Resource Group for Network Watcher
+    New-AzureRmResourceGroup -Name $networkWatcherRGName -Force -Location ResourceGroupLocation
+    #Create Network Watcher
+    $networkWatcherName = ("{0}_{1}" -f $networkWatcherRGName, $ResourceGroupLocation) 
+    New-AzureRmNetworkWatcher -Name $networkWatcherName  -ResourceGroupName $networkWatcherRGName -Location $ResourceGroupLocation
+}
 
 # Now, deploy
 # File based parameters don't always play nicely with object params, so use object params only
