@@ -47,6 +47,13 @@
                 "description" : "Email address to be notified when the sample alert is triggered against the sample VM"
             }
 
+        },
+        "StorageEndpointSuffix":
+        {
+            "metadata": {
+                "description" : "Storage Endpoint for the environment"
+            },
+            "value": "core.windows.net"
         }
     }
 }
