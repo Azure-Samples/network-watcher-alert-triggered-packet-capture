@@ -67,6 +67,14 @@
                 "description":"Password for the default administrator account 'PCAPAdmin' to be created on the VM"
     
             }
+        },
+        "StorageEndpointSuffix":
+        {
+            "type": "string",
+            "metadata": {
+                "description" : "Storage Endpoint for the environment"
+            },
+            "defaultValue": "core.windows.net"
         }
     },
     "variables": {
@@ -113,15 +121,15 @@
                     "appSettings": [
                         {
                             "name": "AzureWebJobsDashboard",
-                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1,';EndpointSuffix=',parameters('StorageEndpointSuffix'))]"
                         },
                         {
                             "name": "AzureWebJobsStorage",
-                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1,';EndpointSuffix=',parameters('StorageEndpointSuffix'))]"
                         },
                         {
                             "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
-                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1,';EndpointSuffix=',parameters('StorageEndpointSuffix'))]"
                         },
                         {
                             "name": "WEBSITE_CONTENTSHARE",
@@ -359,7 +367,6 @@
             ]
         }
     ],
-    "outputs": {
-      
-    }
+    "outputs": {}
+    
 }
